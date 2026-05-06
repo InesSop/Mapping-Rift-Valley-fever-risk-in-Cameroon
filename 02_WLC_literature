@@ -1,5 +1,5 @@
 # Script: 02_wlc_literature.R
-# Purpose: build dry- and wet-season RVF risk maps using WLC-MCDA with literature-derived risk factors and weights weights
+# Purpose: build dry- and wet-season RVF risk maps using WLC-MCDA with literature-derived risk factors and weights
 # Inputs: standardized raster layers produced during data processing
 # Outputs: literature-driven dry- and wet-season risk rasters in outputs/
 
