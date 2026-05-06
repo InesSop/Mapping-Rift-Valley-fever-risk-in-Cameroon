@@ -17,7 +17,7 @@ Scripts related to the upstream geoprocessing and preparation of the environment
 The scripts require preprocessed raster layers prepared on a common grid and projection, as described in the manuscript and supplementary materials.
 
 ## Requirements
-R version X.X.X
+R version 2024.12.1-563
 
 Main packages:
 - terra
