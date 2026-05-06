@@ -32,8 +32,9 @@ Main packages:
 Run scripts in the following order:
 1. `01_wlc_experts.R`
 2. `02_wlc_literature.R`
-3. `03_sensitivity_analysis.R`
-4. `04_validation_auc.R`
+3. `03_combined_models.R`
+4. `04_sensitivity_analysis.R`
+5. `05_validation_and_figures.R`
 
 ## Data availability
 Due to size and/or ownership restrictions, the full raster datasets are not deposited in this repository. Processed inputs or metadata needed to reproduce the workflow are described in the manuscript and supplementary files.
