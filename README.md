@@ -16,5 +16,24 @@ Scripts related to the upstream geoprocessing and preparation of the environment
 ## Inputs
 The scripts require preprocessed raster layers prepared on a common grid and projection, as described in the manuscript and supplementary materials.
 
-## Reproducibility note
-This repository reproduces the modelling workflow from the weighted linear combination stage onward.
+## Requirements
+R version X.X.X
+
+Main packages:
+- terra
+- sf
+- tmap
+- ggplot2
+- pROC
+- dplyr
+- writexl
+
+## Reproducibility
+Run scripts in the following order:
+1. `01_risk_model_dry.R`
+2. `02_risk_model_wet.R`
+3. `03_sensitivity_analysis.R`
+4. `04_validation_auc.R`
+
+## Data availability
+Due to size and/or ownership restrictions, the full raster datasets are not deposited in this repository. Processed inputs or metadata needed to reproduce the workflow are described in the manuscript and supplementary files.
