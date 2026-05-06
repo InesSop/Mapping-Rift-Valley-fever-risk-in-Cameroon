@@ -74,7 +74,7 @@ irrigation <- align_to_ref(
   ref_dry
 )
 
-NDVI_dry <- align_to_ref(
+NDVI <- align_to_ref(
   rast(here(input_dir_risk_factors, "ndvi", "Standardized_NDVI_dry_UTM33N_1km_filled.tif")),
   ref_dry
 )
@@ -102,7 +102,7 @@ rasters_dry <- list(
   sheep_density = sheep_density,
   water_bodies = water_bodies,
   irrigation = irrigation,
-  NDVI_dry = NDVI_dry,
+  NDVI = NDVI,
   rivers_streams = rivers_streams,
   elevation = elevation,
   Aedes_density = Aedes_density
@@ -121,7 +121,7 @@ weights_dry <- c(
   sheep_density = 0.065217392,
   water_bodies = 0.108695653,
   irrigation = 0.065217392,
-  NDVI_dry = 0.152173914,
+  NDVI = 0.152173914,
   rivers_streams = 0.108695653,
   elevation = 0.152173914,
   Aedes_density = 0.065217392
@@ -138,7 +138,7 @@ risk_index_lit_dry <- rainfall        * weights_dry["rainfall"] +
                       sheep_density   * weights_dry["sheep_density"] +
                       water_bodies    * weights_dry["water_bodies"] +
                       irrigation      * weights_dry["irrigation"] +
-                      NDVI_dry        * weights_dry["NDVI_dry"] +
+                      NDVI            * weights_dry["NDVI"] +
                       rivers_streams  * weights_dry["rivers_streams"] +
                       elevation       * weights_dry["elevation"] +
                       Aedes_density   * weights_dry["Aedes_density"]
@@ -195,7 +195,7 @@ irrigation <- align_to_ref(
   ref_wet
 )
 
-NDVI_wet <- align_to_ref(
+NDVI <- align_to_ref(
   rast(here(input_dir_risk_factors, "ndvi", "Standardized_NDVI_wet_UTM33N_1km_filled.tif")),
   ref_wet
 )
@@ -223,7 +223,7 @@ rasters_wet <- list(
   sheep_density = sheep_density,
   water_bodies = water_bodies,
   irrigation = irrigation,
-  NDVI_wet = NDVI_wet,
+  NDVI = NDVI,
   rivers_streams = rivers_streams,
   elevation = elevation,
   Aedes_density = Aedes_density
@@ -242,7 +242,7 @@ weights_wet <- c(
   sheep_density = 0.065217392,
   water_bodies = 0.108695653,
   irrigation = 0.065217392,
-  NDVI_wet = 0.152173914,
+  NDVI = 0.152173914,
   rivers_streams = 0.108695653,
   elevation = 0.152173914,
   Aedes_density = 0.065217392
@@ -259,7 +259,7 @@ risk_index_lit_wet <- rainfall        * weights_wet["rainfall"] +
                       sheep_density   * weights_wet["sheep_density"] +
                       water_bodies    * weights_wet["water_bodies"] +
                       irrigation      * weights_wet["irrigation"] +
-                      NDVI_wet        * weights_wet["NDVI_wet"] +
+                      NDVI            * weights_wet["NDVI"] +
                       rivers_streams  * weights_wet["rivers_streams"] +
                       elevation       * weights_wet["elevation"] +
                       Aedes_density   * weights_wet["Aedes_density"]
