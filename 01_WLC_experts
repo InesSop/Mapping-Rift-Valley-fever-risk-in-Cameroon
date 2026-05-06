@@ -1,5 +1,5 @@
 # Script: 01_wlc_experts.R
-# Purpose: build dry- and wet-season RVF risk maps using WLC-MCDA with weights derived from experts
+# Purpose: build dry- and wet-season RVF risk maps using WLC-MCDA with risk factors and weights derived from experts elicitation
 # Inputs: standardized raster layers produced during data processing
 # Outputs: expert-driven dry- and wet-season risk rasters in outputs/
 
