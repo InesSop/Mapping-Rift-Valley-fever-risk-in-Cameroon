@@ -30,8 +30,8 @@ Main packages:
 
 ## Reproducibility
 Run scripts in the following order:
-1. `01_risk_model_dry.R`
-2. `02_risk_model_wet.R`
+1. `01_wlc_experts.R`
+2. `02_wlc_literature.R`
 3. `03_sensitivity_analysis.R`
 4. `04_validation_auc.R`
 
