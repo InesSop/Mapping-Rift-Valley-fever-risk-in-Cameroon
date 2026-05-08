@@ -44,6 +44,9 @@ Run scripts in the following order:
 06_exposure_and_risk_drivers.R provides two complementary analyses based on the combined seasonal models:
 - estimation of the number of domestic ruminants located in high-risk divisions and in high + medium-risk divisions
 - identification of the three dominant risk factors per division and mapping of the dominant factor
-- 
+  
 ## Data availability
 Due to size and/or ownership restrictions, the full raster datasets are not deposited in this repository. Processed inputs or metadata needed to reproduce the workflow are described in the manuscript and supplementary files.
+
+## Open-source inspiration
+This repository was developed specifically for the present study, but its structure and some coding choices were informed by existing open-source resources addressing spatial multi-criteria decision analysis, raster-based modelling, and disease risk mapping in R. The author drew methodological inspiration from [BovidRiskMaps](https://github.com/Wantidah/BovidRiskMaps), [SpatMCDA](https://github.com/Neaop/SpatMCDA), and [GIS-MCDA-OWA](https://github.com/maximelenormand/GIS-MCDA-OWA), while adapting and extending the workflow to match the objectives, data structure, and analytical requirements of this study.
