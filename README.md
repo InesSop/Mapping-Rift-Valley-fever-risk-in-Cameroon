@@ -11,7 +11,6 @@ Scripts related to the upstream geoprocessing and preparation of the environment
 - weighted linear combination for wet season
 - sensitivity analysis
 - model validation
-- figure and table generation
 
 ## Inputs
 The scripts require preprocessed raster layers prepared on a common grid and projection, as described in the manuscript and supplementary materials.
