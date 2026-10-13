@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+
+message: "If you use this software, please cite it as below."
+
+title: "Mapping of Rift Valley fever risk in Cameroon"
+
+type: software
+
+authors:
+  - family-names: Sopbué Kamguem
+    given-names: Inès
+    orcid: https://orcid.org/0009-0001-7120-1411
+
+version: 1.0.0
+
+date-released: 2026-10-13
+
+repository-code: https://github.com/InesSop/Mapping-Rift-Valley-fever-risk-in-Cameroon.git.
+
+license: MIT
