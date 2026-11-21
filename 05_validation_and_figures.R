@@ -1,6 +1,6 @@
-# Script: 05_validation_and_figures.R
-# Purpose: validate the combined RVF risk model at division level and generate
-#          the main validation tables and figures for dry and wet seasons
+# Script: 05_exploratory_comparison_and_figures_bootstrap_CI.R
+# Purpose: conduct an exploratory comparison of RVF suitability scores with
+#          division-level seroprevalence and generate seasonal summary tables and figures
 # Inputs:
 #   - seasonal expert-based risk rasters
 #   - seasonal literature-based risk rasters
@@ -10,7 +10,7 @@
 # Outputs:
 #   - ROC summary tables
 #   - final AUC comparison tables
-#   - division-level validation tables
+#   - division-level exploratory comparison tables
 #   - average combined risk maps by division
 #   - risk category maps
 #   - combined-model ROC figures
@@ -33,10 +33,22 @@ library(writexl)
 utm33n <- "EPSG:32633"
 
 input_boundaries <- here("inputs", "boundaries", "gadm41_CMR_2.shp")
-input_serology <- here("inputs", "validation", "global_seroprev.csv")
+# Prefer the renamed input folder, while allowing the existing folder structure.
+input_serology <- here("inputs", "exploratory_comparison", "global_seroprev.csv")
+if (!file.exists(input_serology)) {
+  serology_candidates <- list.files(
+    here("inputs"), pattern = "^global_seroprev[.]csv$",
+    recursive = TRUE, full.names = TRUE
+  )
+  if (length(serology_candidates) != 1L) {
+    stop("Expected one global_seroprev.csv in inputs/; found ",
+         length(serology_candidates), ". Please check input_serology.")
+  }
+  input_serology <- serology_candidates[[1]]
+}
 
 output_models_dir <- here("outputs")
-output_dir <- here("outputs", "validation_and_figures")
+output_dir <- here("outputs", "exploratory_comparison_and_figures")
 
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
@@ -53,6 +65,12 @@ min_class_size <- 5
 # Specificity target used to derive the upper threshold for final 3-class maps
 target_specificity_for_high <- 0.75
 
+# Bootstrap settings used for AUC intervals and pointwise ROC bands
+bootstrap_replicates <- 2000
+bootstrap_confidence <- 0.95
+roc_specificities <- seq(0.01, 0.99, by = 0.01)
+set.seed(123)  # Reproducible results in both seasons
+
 # =====================================================================
 # 2. HELPER FUNCTIONS
 # =====================================================================
@@ -61,7 +79,7 @@ normalize_division_names <- function(x) {
   toupper(stri_trans_general(x, "Latin-ASCII"))
 }
 
-roc_summary <- function(data, risk_var, cutoff, boot_n = 2000) {
+roc_summary <- function(data, risk_var, cutoff, boot_n = bootstrap_replicates) {
   sero_bin <- ifelse(data$prevalence_global >= cutoff, 1, 0)
   
   n_pos <- sum(sero_bin == 1, na.rm = TRUE)
@@ -80,7 +98,13 @@ roc_summary <- function(data, risk_var, cutoff, boot_n = 2000) {
   }
   
   roc_obj <- roc(sero_bin, data[[risk_var]], quiet = TRUE)
-  ci_obj <- ci.auc(roc_obj, method = "bootstrap", boot.n = boot_n)
+  ci_obj <- ci.auc(
+    roc_obj,
+    method = "bootstrap",
+    boot.n = boot_n,
+    boot.stratified = TRUE,
+    conf.level = bootstrap_confidence
+  )
   
   data.frame(
     cutoff = cutoff,
@@ -131,6 +155,23 @@ derive_high_threshold <- function(roc_coords, low_thresh, target_specificity = 0
 }
 
 save_roc_step_plot <- function(roc_obj, title_text, output_file) {
+  # Pointwise 95% CI of sensitivity across the specificity grid.
+  ci_roc <- ci.se(
+    roc_obj,
+    specificities = roc_specificities,
+    conf.level = bootstrap_confidence,
+    boot.n = bootstrap_replicates,
+    boot.stratified = TRUE
+  )
+
+  ci_df <- data.frame(
+    specificity = as.numeric(rownames(ci_roc)),
+    se_low = as.numeric(ci_roc[, 1]),
+    se_high = as.numeric(ci_roc[, 3])
+  )
+  ci_df$fpr <- 1 - ci_df$specificity
+  ci_df <- ci_df[order(ci_df$fpr), ]
+
   roc_coords <- coords(
     roc_obj,
     x = "all",
@@ -167,7 +208,24 @@ save_roc_step_plot <- function(roc_obj, title_text, output_file) {
     main = title_text,
     col = "black"
   )
-  
+
+  # Add only the pale blue confidence band. Draw the original ROC again on top.
+  polygon(
+    x = c(ci_df$fpr, rev(ci_df$fpr)),
+    y = c(ci_df$se_high, rev(ci_df$se_low)),
+    col = "#E9F5FF",
+    border = NA
+  )
+
+  lines(
+    1 - roc_coords$specificity,
+    roc_coords$sensitivity,
+    type = "s",
+    lwd = 2,
+    lty = 2,
+    col = "black"
+  )
+
   abline(0, 1, lty = 2, col = "grey")
   
   text(
@@ -221,7 +279,7 @@ seroprev <- seroprev %>%
 
 process_season <- function(season = c("dry", "wet")) {
   season <- match.arg(season)
-  season_dir <- here(output_dir, season)
+  season_dir <- file.path(output_dir, season)  # output_dir is already an absolute project path
   if (!dir.exists(season_dir)) {
     dir.create(season_dir, recursive = TRUE)
   }
@@ -233,14 +291,14 @@ process_season <- function(season = c("dry", "wet")) {
   # -------------------------------------------------------------------
   
   if (season == "dry") {
-    risk_lit_file <- here(output_models_dir, "risk_index_RVF_lit_dry.tif")
-    risk_expert_file <- here(output_models_dir, "risk_index_RVF_expert_dry.tif")
-    risk_combined_file <- here(output_models_dir, "Combined_risk_index_RVF_dry.tif")
+    risk_lit_file <- file.path(output_models_dir, "risk_index_RVF_lit_dry.tif")
+    risk_expert_file <- file.path(output_models_dir, "risk_index_RVF_expert_dry.tif")
+    risk_combined_file <- file.path(output_models_dir, "Combined_risk_index_RVF_dry.tif")
     map_title <- "Dry season"
   } else {
-    risk_lit_file <- here(output_models_dir, "risk_index_RVF_lit_wet.tif")
-    risk_expert_file <- here(output_models_dir, "risk_index_RVF_expert_wet.tif")
-    risk_combined_file <- here(output_models_dir, "Combined_risk_index_RVF_wet.tif")
+    risk_lit_file <- file.path(output_models_dir, "risk_index_RVF_lit_wet.tif")
+    risk_expert_file <- file.path(output_models_dir, "risk_index_RVF_expert_wet.tif")
+    risk_combined_file <- file.path(output_models_dir, "Combined_risk_index_RVF_wet.tif")
     map_title <- "Wet season"
   }
   
@@ -274,10 +332,10 @@ process_season <- function(season = c("dry", "wet")) {
     )
   
   # -------------------------------------------------------------------
-  # 4.4 Export division-level validation table
+  # 4.4 Export division-level exploratory comparison table
   # -------------------------------------------------------------------
   
-  validation_table <- zones_season %>%
+  exploratory_comparison_table <- zones_season %>%
     st_drop_geometry() %>%
     select(
       dept_name,
@@ -298,8 +356,8 @@ process_season <- function(season = c("dry", "wet")) {
     )
   
   write_xlsx(
-    validation_table,
-    path = here(season_dir, paste0("validation_table_", season, ".xlsx"))
+    exploratory_comparison_table,
+    path = file.path(season_dir, paste0("exploratory_comparison_table_", season, ".xlsx"))
   )
   
   # -------------------------------------------------------------------
@@ -319,7 +377,7 @@ process_season <- function(season = c("dry", "wet")) {
     all_cutoffs = all_cutoffs
   )
   
-  results_valid <- results_all_cutoffs %>%
+  results_eligible <- results_all_cutoffs %>%
     filter(n_pos >= min_class_size, n_neg >= min_class_size)
   
   results_all_export <- results_all_cutoffs %>%
@@ -333,7 +391,7 @@ process_season <- function(season = c("dry", "wet")) {
       ci_high = round(ci_high, 3)
     )
   
-  results_valid_export <- results_valid %>%
+  results_eligible_export <- results_eligible %>%
     mutate(
       analysis_type = case_when(
         cutoff %in% biological_cutoffs ~ "biological_candidate",
@@ -347,16 +405,16 @@ process_season <- function(season = c("dry", "wet")) {
   write_xlsx(
     list(
       all_cutoffs = results_all_export,
-      valid_cutoffs = results_valid_export
+      eligible_cutoffs = results_eligible_export
     ),
-    path = here(season_dir, paste0("roc_results_all_cutoffs_", season, ".xlsx"))
+    path = file.path(season_dir, paste0("roc_results_all_cutoffs_", season, ".xlsx"))
   )
   
   # -------------------------------------------------------------------
   # 4.6 Compare 10% and 15% for the combined model
   # -------------------------------------------------------------------
   
-  results_biological_combined <- results_valid %>%
+  results_biological_combined <- results_eligible %>%
     filter(
       model == "risk_combined_mean",
       cutoff %in% biological_cutoffs
@@ -367,10 +425,10 @@ process_season <- function(season = c("dry", "wet")) {
   # 4.7 Select final cutoff for the combined model
   # -------------------------------------------------------------------
   
-  # The final cutoff is selected as the best valid cutoff for the combined model.
-  # In the manuscript, this was used to support the final surveillance-oriented
-  # validation of the combined seasonal model.
-  results_best_combined <- results_valid %>%
+  # For exploratory comparison, the cutoff with the largest observed AUC among
+  # eligible cutoffs is selected. This data-driven choice can lead to optimistic
+  # discrimination estimates; it must not be interpreted as an independent assessment of model performance.
+  results_best_combined <- results_eligible %>%
     filter(model == "risk_combined_mean") %>%
     arrange(desc(auc))
   
@@ -389,6 +447,23 @@ process_season <- function(season = c("dry", "wet")) {
   roc_expert <- roc(zones_season$sero_binary, zones_season$risk_expert, quiet = TRUE)
   roc_combined <- roc(zones_season$sero_binary, zones_season$risk_combined_mean, quiet = TRUE)
   
+  # Final AUC 95% CIs: stratified non-parametric bootstrap (not DeLong).
+  ci_auc_lit <- ci.auc(
+    roc_lit, method = "bootstrap",
+    boot.n = bootstrap_replicates, boot.stratified = TRUE,
+    conf.level = bootstrap_confidence
+  )
+  ci_auc_expert <- ci.auc(
+    roc_expert, method = "bootstrap",
+    boot.n = bootstrap_replicates, boot.stratified = TRUE,
+    conf.level = bootstrap_confidence
+  )
+  ci_auc_combined <- ci.auc(
+    roc_combined, method = "bootstrap",
+    boot.n = bootstrap_replicates, boot.stratified = TRUE,
+    conf.level = bootstrap_confidence
+  )
+
   final_auc_table <- data.frame(
     model = c("literature", "expert", "combined"),
     auc = c(
@@ -397,14 +472,14 @@ process_season <- function(season = c("dry", "wet")) {
       as.numeric(auc(roc_combined))
     ),
     ci_low = c(
-      as.numeric(ci.auc(roc_lit)[1]),
-      as.numeric(ci.auc(roc_expert)[1]),
-      as.numeric(ci.auc(roc_combined)[1])
+      as.numeric(ci_auc_lit[1]),
+      as.numeric(ci_auc_expert[1]),
+      as.numeric(ci_auc_combined[1])
     ),
     ci_high = c(
-      as.numeric(ci.auc(roc_lit)[3]),
-      as.numeric(ci.auc(roc_expert)[3]),
-      as.numeric(ci.auc(roc_combined)[3])
+      as.numeric(ci_auc_lit[3]),
+      as.numeric(ci_auc_expert[3]),
+      as.numeric(ci_auc_combined[3])
     ),
     seroprevalence_cutoff = final_cutoff
   ) %>%
@@ -413,14 +488,14 @@ process_season <- function(season = c("dry", "wet")) {
       ci_low = round(ci_low, 3),
       ci_high = round(ci_high, 3)
     )
-  
+
   write_xlsx(
     list(
       final_auc = final_auc_table,
       biological_comparison = results_biological_combined,
       best_combined_cutoffs = results_best_combined
     ),
-    path = here(season_dir, paste0("final_auc_summary_", season, ".xlsx"))
+    path = file.path(season_dir, paste0("final_auc_summary_", season, ".xlsx"))
   )
   
   # -------------------------------------------------------------------
@@ -463,7 +538,7 @@ process_season <- function(season = c("dry", "wet")) {
   
   write_xlsx(
     thresholds_table,
-    path = here(season_dir, paste0("classification_thresholds_", season, ".xlsx"))
+    path = file.path(season_dir, paste0("classification_thresholds_", season, ".xlsx"))
   )
   
   # -------------------------------------------------------------------
@@ -490,7 +565,7 @@ process_season <- function(season = c("dry", "wet")) {
     )
   
   ggsave(
-    filename = here(season_dir, paste0("average_combined_risk_by_division_", season, ".tiff")),
+    filename = file.path(season_dir, paste0("average_combined_risk_by_division_", season, ".tiff")),
     plot = p_avg_risk,
     width = 10,
     height = 8,
@@ -555,7 +630,7 @@ process_season <- function(season = c("dry", "wet")) {
   
   tmap_save(
     tm = tm_risk,
-    filename = here(season_dir, paste0("risk_categories_by_division_combined_", season, ".tiff")),
+    filename = file.path(season_dir, paste0("risk_categories_by_division_combined_", season, ".tiff")),
     width = 2000,
     height = 1600,
     units = "px",
@@ -574,7 +649,7 @@ process_season <- function(season = c("dry", "wet")) {
       "%) - ",
       map_title
     ),
-    output_file = here(season_dir, paste0("ROC_combined_", season, ".tiff"))
+    output_file = file.path(season_dir, paste0("ROC_combined_", season, ".tiff"))
   )
   
   # -------------------------------------------------------------------
@@ -598,7 +673,7 @@ process_season <- function(season = c("dry", "wet")) {
   
   st_write(
     risk_categories_shp,
-    here(season_dir, paste0("risk_categories_by_division_combined_", season, ".shp")),
+    file.path(season_dir, paste0("risk_categories_by_division_combined_", season, ".shp")),
     delete_layer = TRUE,
     quiet = TRUE
   )
@@ -619,7 +694,7 @@ process_season <- function(season = c("dry", "wet")) {
   
   st_write(
     average_risk_shp,
-    here(season_dir, paste0("average_combined_risk_by_division_", season, ".shp")),
+    file.path(season_dir, paste0("average_combined_risk_by_division_", season, ".shp")),
     delete_layer = TRUE,
     quiet = TRUE
   )
@@ -635,12 +710,12 @@ process_season <- function(season = c("dry", "wet")) {
     high_thresh = high_thresh,
     final_auc_table = final_auc_table,
     results_all_cutoffs = results_all_cutoffs,
-    results_valid = results_valid
+    results_eligible = results_eligible
   )
 }
 
 # =====================================================================
-# 5. RUN DRY AND WET VALIDATION
+# 5. RUN DRY AND WET EXPLORATORY COMPARISONS
 # =====================================================================
 
 dry_results <- process_season("dry")
@@ -658,7 +733,7 @@ combined_auc_summary <- bind_rows(
 
 write_xlsx(
   combined_auc_summary,
-  path = here(output_dir, "combined_auc_summary_dry_wet.xlsx")
+  path = file.path(output_dir, "combined_auc_summary_dry_wet.xlsx")
 )
 
-message("Validation and figure generation completed successfully.")
+message("Exploratory comparison and figure generation completed successfully.")
